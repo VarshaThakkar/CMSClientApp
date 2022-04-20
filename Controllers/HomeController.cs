@@ -1,4 +1,5 @@
 ﻿using CMSClientApp.Models;
+using CMSClientApp.Models.Google;
 using Google.Apis.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -183,7 +184,7 @@ namespace CMSClientApp.Controllers
         }
         private const string GoogleApiTokenInfoUrl = "https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token={0}";
 
-        public JsonResult ValidateGoogleToken(string providerToken)
+        public GoogleUserInfo ValidateGoogleToken(string providerToken)
         {
             var httpClient = new HttpClient();
             var requestUri = new Uri(string.Format(GoogleApiTokenInfoUrl, providerToken));
@@ -203,7 +204,17 @@ namespace CMSClientApp.Controllers
             }
             var response = httpResponseMessage.Content.ReadAsStringAsync().Result;
 
-            return Json(response);
+            var googleApiTokenInfo = JsonConvert.DeserializeObject<GoogleApiTokenInfo>(response);           
+
+            return new GoogleUserInfo
+            {
+                Email = googleApiTokenInfo.email,
+                FirstName = googleApiTokenInfo.given_name,
+                LastName = googleApiTokenInfo.family_name,
+                Locale = googleApiTokenInfo.locale,
+                Name = googleApiTokenInfo.name,
+                ProviderUserId = googleApiTokenInfo.sub
+            };
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
