@@ -1,0 +1,46 @@
+﻿@model CMSClientApp.Models.LoginInfo
+@{
+    ViewData["Title"] = "Home Page";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<hr />
+@if (TempData["message"] != null)
+{
+    <span class="text-danger">@TempData["message"]</span>
+}
+<div class="row">
+    <div class="col-md-6">
+        <h3>Local Account Login</h3>
+        <hr />
+        <form asp-action="LoginUser" asp-controller="Home">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="form-group">
+                <label asp-for="Email" class="control-label"></label>
+                <input asp-for="Email" class="form-control" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Password" class="control-label"></label>
+                <input asp-for="Password" class="form-control" />
+                <span asp-validation-for="Password" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Login" class="btn btn-primary" />
+                <a class="btn btn-primary" asp-controller="Home" asp-action="Register">Signup</a>
+            </div>
+
+        </form>
+    </div>
+    @*<div class="col-md-6">
+            <h3>External Login</h3>
+            <hr />
+            @{
+                if (Model.ExternalLogins.Count == 0)
+                {
+                    <div>No external login configured</div>
+                }
+            }
+        </div>*@
+</div>
+

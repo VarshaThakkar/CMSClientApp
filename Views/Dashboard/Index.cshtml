@@ -1,0 +1,12 @@
+﻿
+@{
+    ViewData["Title"] = "Index";
+    Layout = "~/Views/Shared/_LayoutHome.cshtml";
+}
+
+@if (TempData["message"] != null)
+{
+    <span class="text-danger">@TempData["message"]</span>
+}
+<h1>Dashboard</h1>
+
