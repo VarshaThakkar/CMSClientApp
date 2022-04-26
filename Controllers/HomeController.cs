@@ -79,12 +79,49 @@ namespace CMSClientApp.Controllers
             return View();
         }
         [HttpPost]
+        public async Task<bool> GoogleUserRegister(GoogleUserInfo user)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, "https://localhost:44385/api/users/googlelogin");
+            if (user != null)
+            {
+                request.Content = new StringContent(JsonConvert.SerializeObject(user),
+                    System.Text.Encoding.UTF8, "application/json");
+            }
+            var client = _clientFactory.CreateClient();
+            HttpResponseMessage response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            if (response.StatusCode == System.Net.HttpStatusCode.OK)
+            {
+                string token = await response.Content.ReadAsStringAsync();
+                if (token == null)
+                {
+                    TempData["message"] = "Incorrect Email or Password!";
+                    return false;
+                }
+                else
+                {
+                    TempData["message"] = "Successfully Logged In !";
+                    HttpContext.Session.SetString("JWTToken", token);
+                    return true;
+                }
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+            {
+                TempData["message"] = "User With The Same Name Already Exists !";
+                return false;
+            }
+            return false;
+        }
+
+
+
+        [HttpPost]
         public async Task<IActionResult> Register(Users user)
         {
             if (ModelState.IsValid)
             {
-
                 var request = new HttpRequestMessage(HttpMethod.Post, "https://localhost:44385/api/users/register");
+                // var request1 = new HttpRequestMessage(HttpMethod.Post, "https://localhost:44385/api/users/googlelogin/varsha.bwt@gmail.com");
+
                 if (user != null)
                 {
                     request.Content = new StringContent(JsonConvert.SerializeObject(user),
@@ -128,17 +165,19 @@ namespace CMSClientApp.Controllers
 
             return Redirect("~/Home/Index");
         }
-       
+
         public IActionResult Privacy()
         {
             return View();
         }
-        [AllowAnonymous]       
+        [AllowAnonymous]
+        [HttpGet]
         public IActionResult GoogleLogin()
         {
-            var properties = new AuthenticationProperties { RedirectUri = Url.Action("GoogleResponse"), AllowRefresh = true };
+            var properties = new AuthenticationProperties { RedirectUri = Url.Action("GoogleResponse") };
             return Challenge(properties, GoogleDefaults.AuthenticationScheme);
         }
+        [HttpGet]
         public async Task<IActionResult> GoogleResponse()
         {
             var authenticateResult = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
@@ -155,38 +194,17 @@ namespace CMSClientApp.Controllers
             {
                 if (authenticateResult.Principal != null)
                 {
-                    var googleAccountId = authenticateResult.Principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-                    var claimsIdentity = new ClaimsIdentity();
-                    if (authenticateResult.Principal != null)
-                    {
-                        var details = authenticateResult.Principal.Claims.ToList();
-                        // claimsIdentity.AddClaim(authenticateResult.Principal.FindFirst(ClaimTypes.NameIdentifier));// Full Name Of The User
-                        claimsIdentity.AddClaim(authenticateResult.Principal.FindFirst(ClaimTypes.Email)); // Email Address of The User
-
-                        ValidateGoogleToken(accessToken);
-                        // await HttpContext.SignInAsync(new ClaimsPrincipal(claimsIdentity));
-                        // return RedirectToAction("Index", "Dashboard");
-                    }
+                    var userinfo = ValidateGoogleToken(accessToken);
+                    await GoogleUserRegister(userinfo);
+                    return RedirectToAction("Index", "Dashboard");
                 }
             }
             return RedirectToAction("Index", "Home");
-            //    var claims = authenticateResult.Principal.Identities
-            //.FirstOrDefault().Claims.Select(claim => new
-            //{
-            //    claim.Issuer,
-            //    claim.OriginalIssuer,
-            //    claim.Type,
-            //    claim.Value
-            //});
-
-            //    return Json(claims);
         }
         private const string GoogleApiTokenInfoUrl = "https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token={0}";
-
         public GoogleUserInfo ValidateGoogleToken(string providerToken)
         {
-            var httpClient = new HttpClient();
+            var httpClient = _clientFactory.CreateClient();
             var requestUri = new Uri(string.Format(GoogleApiTokenInfoUrl, providerToken));
             HttpResponseMessage httpResponseMessage;
             try
@@ -204,17 +222,22 @@ namespace CMSClientApp.Controllers
             }
             var response = httpResponseMessage.Content.ReadAsStringAsync().Result;
 
-            var googleApiTokenInfo = JsonConvert.DeserializeObject<GoogleApiTokenInfo>(response);           
+            var googleApiTokenInfo = JsonConvert.DeserializeObject<GoogleApiTokenInfo>(response);
 
-            return new GoogleUserInfo
+            if (googleApiTokenInfo != null)
             {
-                Email = googleApiTokenInfo.email,
-                FirstName = googleApiTokenInfo.given_name,
-                LastName = googleApiTokenInfo.family_name,
-                Locale = googleApiTokenInfo.locale,
-                Name = googleApiTokenInfo.name,
-                ProviderUserId = googleApiTokenInfo.sub
-            };
+                return new GoogleUserInfo
+                {
+                    Email = googleApiTokenInfo.email,
+                    FirstName = googleApiTokenInfo.given_name,
+                    LastName = googleApiTokenInfo.family_name,
+                    // Locale = googleApiTokenInfo.locale,
+                    //Name = googleApiTokenInfo.name,
+                    //ProviderUserId = googleApiTokenInfo.sub
+                };
+            }
+            return null;
+
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
